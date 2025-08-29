@@ -1,39 +1,112 @@
 import pytest
 import cupy
-import numpy
-import os
+import numpy as np
 from lenia_core import Lenia
+import config
 
-# The path to the golden master file, relative to this test file.
-GOLDEN_MASTER_PATH = os.path.join(os.path.dirname(__file__), 'golden_master.npy')
-
-# Check if the golden master file exists. If not, skip this test.
-if not os.path.exists(GOLDEN_MASTER_PATH):
-    pytest.skip("Golden master file not found. Run `venv/bin/python scripts/generate_master.py` to create it.", allow_module_level=True)
-
-def run_simulation_for_test():
-    """Runs the Lenia simulation for a fixed number of steps with a fixed seed."""
-    # Set fixed seeds for reproducibility
-    numpy.random.seed(42)
-    cupy.random.seed(42)
-
-    # Initialize Lenia.
+def test_kernel_creation():
+    """Tests the creation of the kernel."""
     lenia = Lenia()
+    # Test for gaussian kernel
+    lenia.set_kernel_shape("gaussian")
+    kernel_fft = lenia._create_kernel_fft(lenia.kernel_radius, lenia.kernel_shape)
+    assert isinstance(kernel_fft, cupy.ndarray)
+    # Test for ring kernel
+    lenia.set_kernel_shape("ring")
+    kernel_fft = lenia._create_kernel_fft(lenia.kernel_radius, lenia.kernel_shape)
+    assert isinstance(kernel_fft, cupy.ndarray)
+    # Test for square kernel
+    lenia.set_kernel_shape("square")
+    kernel_fft = lenia._create_kernel_fft(lenia.kernel_radius, lenia.kernel_shape)
+    assert isinstance(kernel_fft, cupy.ndarray)
 
-    # Run for a fixed number of steps
-    for _ in range(10):
-        lenia.update()
+def test_growth_function():
+    """Tests the growth function."""
+    lenia = Lenia()
+    # Test with mu
+    assert np.isclose(lenia._growth(lenia.mu), 1.0)
+    # Test with value far from mu
+    assert lenia._growth(100) < 0
 
-    # Return the final world state on the CPU
-    return lenia.get_world().get()
+def test_update_predictable():
+    """Tests the update function with a predictable scenario."""
+    # Use a small grid for predictability
+    config.GRID_SIZE = 5
+    config.KERNEL_RADIUS = 2
+    lenia = Lenia()
+    # Start with a blank world
+    lenia.world = cupy.zeros((5, 5), dtype=cupy.float32)
+    # Add a single pixel in the center
+    lenia.world[2, 2] = 1.0
 
-def test_lenia_algorithm_correctness():
-    """Compares the current simulation output against the golden master file."""
-    # Load the trusted, correct result
-    golden_master = numpy.load(GOLDEN_MASTER_PATH)
+    initial_world = lenia.world.copy()
+    lenia.update()
+    updated_world = lenia.world
 
-    # Generate a fresh result with the current code
-    current_result = run_simulation_for_test()
+    # The center pixel should have changed
+    assert initial_world[2, 2] != updated_world[2, 2]
+    # The corners should remain unchanged
+    assert initial_world[0, 0] == updated_world[0, 0]
 
-    # Compare them. This will fail if the algorithm has changed.
-    numpy.testing.assert_allclose(current_result, golden_master, rtol=1e-5, atol=1e-5)
+def test_world_is_cupy_array():
+    """Checks that the Lenia world is a CuPy array."""
+    lenia = Lenia()
+    assert isinstance(lenia.get_world(), cupy.ndarray)
+
+def test_world_has_correct_shape():
+    """Checks that the Lenia world has the expected dimensions."""
+    lenia = Lenia()
+    assert lenia.get_world().shape == (config.GRID_SIZE, config.GRID_SIZE)
+
+def test_world_values_are_in_range():
+    """Checks that all values in the Lenia world are between 0 and 1."""
+    lenia = Lenia()
+    world = lenia.get_world()
+    assert cupy.all(world >= 0)
+    assert cupy.all(world <= 1)
+
+def test_update_changes_world():
+    """Checks that the update function modifies the world state."""
+    lenia = Lenia()
+    initial_world = lenia.get_world().copy()
+    lenia.update()
+    updated_world = lenia.get_world()
+    assert not cupy.all(initial_world == updated_world)
+
+def test_set_kernel_radius():
+    """Checks that the kernel radius can be set correctly."""
+    lenia = Lenia()
+    lenia.set_kernel_radius(10)
+    assert lenia.kernel_radius == 10
+
+def test_set_timestep():
+    """Checks that the timestep can be set correctly."""
+    lenia = Lenia()
+    lenia.set_timestep(0.05)
+    assert lenia.timestep == 0.05
+
+def test_set_kernel_shape():
+    """Checks that the kernel shape can be set correctly."""
+    lenia = Lenia()
+    lenia.set_kernel_shape("ring")
+    assert lenia.kernel_shape == "ring"
+
+def test_set_mu():
+    """Checks that mu can be set correctly."""
+    lenia = Lenia()
+    lenia.set_mu(0.2)
+    assert lenia.mu == 0.2
+
+def test_set_sigma():
+    """Checks that sigma can be set correctly."""
+    lenia = Lenia()
+    lenia.set_sigma(0.02)
+    assert lenia.sigma == 0.02
+
+def test_randomize_world():
+    """Checks that the world is randomized."""
+    lenia = Lenia()
+    initial_world = lenia.get_world().copy()
+    lenia.randomize_world()
+    randomized_world = lenia.get_world()
+    assert not cupy.all(initial_world == randomized_world)

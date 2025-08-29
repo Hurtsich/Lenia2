@@ -1,7 +1,10 @@
-# This file allows pytest to find the root project modules.
-import os
-import sys
+import pytest
+import config
 
-# Add project root to the Python path
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, project_root)
+@pytest.fixture(autouse=True)
+def restore_config():
+    original_grid_size = config.GRID_SIZE
+    original_kernel_radius = config.KERNEL_RADIUS
+    yield
+    config.GRID_SIZE = original_grid_size
+    config.KERNEL_RADIUS = original_kernel_radius

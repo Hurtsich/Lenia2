@@ -4,11 +4,13 @@ import numpy as np
 import moderngl
 import argparse
 from lenia_core import Lenia
+from lenia_core_spatial import LeniaSpatial
 import config
 
 # --- Argument Parsing ---
 parser = argparse.ArgumentParser(description='Lenia Simulation')
 parser.add_argument('--smoke-test', action='store_true', help='Run in a non-interactive mode for a few frames and exit.')
+parser.add_argument('--spatial', action='store_true', help='Use spatial convolution instead of FFT.')
 args = parser.parse_args()
 
 # Initialize Pygame
@@ -85,27 +87,30 @@ gui_texture.filter = (moderngl.LINEAR, moderngl.LINEAR)
 manager = pygame_gui.UIManager(WINDOW_SIZE, enable_live_theme_updates=False)
 # The offscreen surface for the GUI must be the full window size
 gui_surface = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
-lenia = Lenia()
+if args.spatial:
+    lenia = LeniaSpatial()
+else:
+    lenia = Lenia()
 
 # Create GUI elements. The panel is positioned at the bottom of the window.
 ui_panel = pygame_gui.elements.UIPanel(relative_rect=pygame.Rect((0, config.GRID_SIZE, config.GRID_SIZE, UI_HEIGHT)), manager=manager)
 
 # First Column
 pygame_gui.elements.UILabel(relative_rect=pygame.Rect((10, 5, 100, 20)), text='Kernel Radius', manager=manager, container=ui_panel)
-radius_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((120, 5, 120, 20)), start_value=lenia.kernel_radius, value_range=(1, 50), manager=manager, container=ui_panel)
+radius_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((120, 5, 120, 20)), start_value=lenia.kernel_radius, value_range=(config.RADIUS_MIN, config.RADIUS_MAX), manager=manager, container=ui_panel, click_increment=1)
 
 pygame_gui.elements.UILabel(relative_rect=pygame.Rect((10, 35, 100, 20)), text='Timestep', manager=manager, container=ui_panel)
-timestep_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((120, 35, 120, 20)), start_value=lenia.timestep, value_range=(0.01, 0.2), manager=manager, container=ui_panel)
+timestep_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((120, 35, 120, 20)), start_value=lenia.timestep, value_range=(config.TIMESTEP_MIN, config.TIMESTEP_MAX), manager=manager, container=ui_panel, click_increment=0.01)
 
 pygame_gui.elements.UILabel(relative_rect=pygame.Rect((10, 65, 100, 20)), text='Kernel Shape', manager=manager, container=ui_panel)
 shape_dropdown = pygame_gui.elements.UIDropDownMenu(options_list=lenia.kernel_shapes, starting_option=lenia.kernel_shape, relative_rect=pygame.Rect((120, 65, 120, 25)), manager=manager, container=ui_panel)
 
 # Second Column
 pygame_gui.elements.UILabel(relative_rect=pygame.Rect((250, 5, 100, 20)), text='Growth Mu', manager=manager, container=ui_panel)
-mu_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((360, 5, 120, 20)), start_value=lenia.mu, value_range=(0.05, 0.3), manager=manager, container=ui_panel)
+mu_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((360, 5, 120, 20)), start_value=lenia.mu, value_range=(config.MU_MIN, config.MU_MAX), manager=manager, container=ui_panel, click_increment=0.01)
 
 pygame_gui.elements.UILabel(relative_rect=pygame.Rect((250, 35, 100, 20)), text='Growth Sigma', manager=manager, container=ui_panel)
-sigma_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((360, 35, 120, 20)), start_value=lenia.sigma, value_range=(0.005, 0.05), manager=manager, container=ui_panel)
+sigma_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((360, 35, 120, 20)), start_value=lenia.sigma, value_range=(config.SIGMA_MIN, config.SIGMA_MAX), manager=manager, container=ui_panel, click_increment=0.001)
 
 randomize_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((-160, 5, 150, 85)), text='Randomize World', manager=manager, container=ui_panel, anchors={'right': 'right'})
 

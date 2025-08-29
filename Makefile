@@ -29,6 +29,11 @@ run:
 	@echo "---> Launching Lenia application..."
 	$(VENV_PYTHON) main.py
 
+# Target: run-spatial - Runs the main Lenia application with spatial convolution.
+run-spatial:
+	@echo "---> Launching Lenia application (spatial convolution)..."
+	$(VENV_PYTHON) main.py --spatial
+
 # Target: clean - Removes the virtual environment and other generated files.
 clean:
 	@echo "---> Cleaning up project..."
